@@ -30,5 +30,33 @@ namespace Soccer.Web.Helpers
                 Name = teamEntity.Name
             };
         }
+
+        public TournamentEntity ToTournamentEntity(TournamentViewModel model, string path, bool isNew)
+        {
+            return new TournamentEntity
+            {
+                Id = isNew ? 0 : model.Id, //Si es = es nuevo, de lo contrario es una actualizacion
+                EndDate = model.EndDate.ToUniversalTime(),
+                Groups = model.Groups,                
+                IsActive = model.IsActive,
+                LogoPath = path,
+                Name = model.Name,
+                StartDate = model.StartDate.ToUniversalTime()
+            };
+        }
+
+        public TournamentViewModel ToTournamentViewModel(TournamentEntity tournamentEntity)
+        {
+            return new TournamentViewModel
+            {
+                Id = tournamentEntity.Id,
+                EndDate = tournamentEntity.EndDate,
+                Groups = tournamentEntity.Groups,
+                IsActive = tournamentEntity.IsActive,
+                LogoPath = tournamentEntity.LogoPath,
+                Name = tournamentEntity.Name,
+                StartDate = tournamentEntity.StartDate
+            };
+        }
     }
 }

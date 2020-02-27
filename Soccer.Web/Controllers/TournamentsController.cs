@@ -1,49 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Soccer.Web.Data;
 using Soccer.Web.Data.Entities;
+using Soccer.Web.Interfaces;
+using Soccer.Web.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Soccer.Web.Controllers
 {
     public class TournamentsController : Controller
     {
-        private readonly DataContext _context;
+        private readonly DataContext _dataContext;
+        private readonly IConverterHelper _converterHelper;
+        private readonly IImageHelper _imageHelper;
 
-        public TournamentsController(DataContext context)
+        public TournamentsController(DataContext dataContext, IConverterHelper converterHelper, IImageHelper imageHelper)
         {
-            _context = context;
+            _dataContext = dataContext;
+            _converterHelper = converterHelper;
+            _imageHelper = imageHelper;
         }
 
-        // GET: Tournaments
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult>Index()
         {
-            return View(await _context.Tournaments.ToListAsync());
+            object model = await _dataContext
+                .Tournaments
+                .Include(t => t.Groups)
+                .OrderBy(t => t.StartDate)
+                .ToListAsync();
+
+            return View(model);
         }
 
-        // GET: Tournaments/Details/5
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var tournamentEntity = await _context.Tournaments
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (tournamentEntity == null)
-            {
-                return NotFound();
-            }
-
-            return View(tournamentEntity);
-        }
-
-        // GET: Tournaments/Create
         public IActionResult Create()
         {
             return View();
@@ -51,18 +42,26 @@ namespace Soccer.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(TournamentEntity tournamentEntity)
+        public async Task<IActionResult> Create(TournamentViewModel model)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(tournamentEntity);
-                await _context.SaveChangesAsync();
+                string path = string.Empty;
+
+                if (model.LogoFile != null)
+                {
+                    path = await _imageHelper.UploadImageAsync(model.LogoFile, "Tournaments");
+                }
+
+                TournamentEntity tournament = _converterHelper.ToTournamentEntity(model, path, true);
+                _dataContext.Add(tournament);
+                await _dataContext.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            return View(tournamentEntity);
+
+            return View(model);
         }
 
-        // GET: Tournaments/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -70,48 +69,38 @@ namespace Soccer.Web.Controllers
                 return NotFound();
             }
 
-            var tournamentEntity = await _context.Tournaments.FindAsync(id);
+            TournamentEntity tournamentEntity = await _dataContext.Tournaments.FindAsync(id);
             if (tournamentEntity == null)
             {
                 return NotFound();
             }
-            return View(tournamentEntity);
-        }
 
+            TournamentViewModel model = _converterHelper.ToTournamentViewModel(tournamentEntity);
+            return View(model);
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, TournamentEntity tournamentEntity)
+        public async Task<IActionResult> Edit(TournamentViewModel model)
         {
-            if (id != tournamentEntity.Id)
-            {
-                return NotFound();
-            }
-
             if (ModelState.IsValid)
             {
-                try
+                string path = model.LogoPath;
+
+                if (model.LogoFile != null)
                 {
-                    _context.Update(tournamentEntity);
-                    await _context.SaveChangesAsync();
+                    path = await _imageHelper.UploadImageAsync(model.LogoFile, "Tournaments");
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TournamentEntityExists(tournamentEntity.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+
+                TournamentEntity tournamentEntity = _converterHelper.ToTournamentEntity(model, path, false);
+                _dataContext.Update(tournamentEntity);
+                await _dataContext.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            return View(tournamentEntity);
+
+            return View(model);
         }
 
-        // GET: Tournaments/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -119,30 +108,17 @@ namespace Soccer.Web.Controllers
                 return NotFound();
             }
 
-            var tournamentEntity = await _context.Tournaments
+            TournamentEntity tournamentEntity = await _dataContext.Tournaments
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (tournamentEntity == null)
             {
                 return NotFound();
             }
 
-            return View(tournamentEntity);
-        }
-
-        // POST: Tournaments/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var tournamentEntity = await _context.Tournaments.FindAsync(id);
-            _context.Tournaments.Remove(tournamentEntity);
-            await _context.SaveChangesAsync();
+            _dataContext.Tournaments.Remove(tournamentEntity);
+            await _dataContext.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
-        private bool TournamentEntityExists(int id)
-        {
-            return _context.Tournaments.Any(e => e.Id == id);
-        }
     }
 }

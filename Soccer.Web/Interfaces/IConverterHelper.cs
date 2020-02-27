@@ -11,5 +11,8 @@ namespace Soccer.Web.Interfaces
     {
         TeamEntity ToTeamEntity(TeamViewModel model, string path, bool isNew);
         TeamViewModel ToTeamViewModel(TeamEntity teamEntity);
+
+        TournamentEntity ToTournamentEntity(TournamentViewModel model, string path, bool isNew);
+        TournamentViewModel ToTournamentViewModel(TournamentEntity tournamentEntity);
     }
 }
